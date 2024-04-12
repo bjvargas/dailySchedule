@@ -37,7 +37,6 @@ def add_member_commands(bot, member_cycle, GUILD_ID):
         # Get the current server time
         server_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        # Get the last member
         with open('last_member.txt', 'r') as f:
             last_member = f.read().strip()
 
