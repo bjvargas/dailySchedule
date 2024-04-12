@@ -1,10 +1,12 @@
 import datetime
+import itertools
 
 import discord
+from apscheduler.triggers.cron import CronTrigger
 from discord import app_commands
 
 
-def add_member_commands(bot, member_cycle, GUILD_ID):
+def add_member_commands(bot, GUILD_ID):
     tree = app_commands.CommandTree(bot)
 
     @tree.command(guild=discord.Object(id=GUILD_ID), name='add_member', description='Adiciona um membro à lista')
@@ -37,11 +39,15 @@ def add_member_commands(bot, member_cycle, GUILD_ID):
         # Get the current server time
         server_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+        # Get the last member
         with open('last_member.txt', 'r') as f:
             last_member = f.read().strip()
-
-        # Get the next member
-        next_member = next(member_cycle)
+        with open('members.txt', 'r') as f:
+            members = [line.strip() for line in f]
+        members.sort()  # Sort the members list
+        last_member_index = members.index(last_member) if last_member in members else -1
+        next_member_index = (last_member_index + 1) % len(members)
+        next_member = members[next_member_index]
 
         # Get the schedule
         schedule = get_schedule()
@@ -59,19 +65,17 @@ def add_member_commands(bot, member_cycle, GUILD_ID):
     async def _set_schedule(interaction: discord.Interaction, days: str, time: str):
         # Validate and map the days
         day_map = {'seg': 'mon', 'ter': 'tue', 'qua': 'wed', 'qui': 'thu', 'sex': 'fri', 'sab': 'sat', 'dom': 'sun'}
-        days = days.lower().split(',')
+        days = [day.strip() for day in days.split(',')]
         if not all(day in day_map for day in days):
-            await interaction.response.send_message('Dias inválidos. Use: seg, ter, qua, qui, sex, sab, dom',
-                                                    ephemeral=False)
+            await interaction.response.send_message('Dias inválidos. Use: seg, ter, qua, qui, sex, sab, dom', ephemeral=False)
             return
         days_english = [day_map[day] for day in days]
 
         # Validate the time
         try:
-            datetime.datetime.strptime(time, '%H:%M')
+            time_obj = datetime.datetime.strptime(time, '%H:%M').time()
         except ValueError:
-            await interaction.response.send_message('Hora inválida. Use o formato 24h, por exemplo: 14:30',
-                                                    ephemeral=False)
+            await interaction.response.send_message('Hora inválida. Use o formato 24h, por exemplo: 14:30', ephemeral=False)
             return
 
         # Write the new schedule to the file
@@ -79,8 +83,13 @@ def add_member_commands(bot, member_cycle, GUILD_ID):
             f.write(f'days: {",".join(days_english)}\n')
             f.write(f'time: {time}\n')
 
-        await interaction.response.send_message(
-            f'Escala ajustada para: {", ".join(day.title() for day in days)} às {time}', ephemeral=False)
+        # Remove the existing job from the scheduler
+        bot.scheduler.remove_job('daily_message_job')
+
+        # Add a new job to the scheduler with the new schedule
+        bot.scheduler.add_job(bot.sync_daily_message, CronTrigger(day_of_week=','.join(days_english), hour=time_obj.hour, minute=time_obj.minute), id='daily_message_job')
+
+        await interaction.response.send_message(f'Escala ajustada para: {", ".join(day.title() for day in days)} às {time}', ephemeral=False)
 
     return tree
 

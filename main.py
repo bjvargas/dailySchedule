@@ -1,11 +1,13 @@
-import discord
+import asyncio
 import datetime
 import itertools
+
+import discord
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from members import add_member_commands, get_schedule
 
-GUILD_ID = 000 #
+GUILD_ID = 000
 
 # Read members from a file
 with open('members.txt', 'r') as f:
@@ -20,6 +22,7 @@ class MyBot(discord.Client):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.synced = False
+        self.loop = asyncio.get_event_loop()  # Get the current event loop
         try:
             with open('last_member.txt', 'r') as f:
                 last_member = f.read().strip()
@@ -31,22 +34,26 @@ class MyBot(discord.Client):
             next(self.member_cycle)  # Advance the cycle once to get the next member
         except FileNotFoundError:
             self.member_cycle = itertools.cycle(sorted(members))  # Create the member cycle with the initial members
-        self.tree = add_member_commands(self, self.member_cycle, GUILD_ID)
+        self.tree = add_member_commands(self, GUILD_ID)
 
         # Create a background scheduler
         self.scheduler = BackgroundScheduler()
         # Add a job to the scheduler
-        self.scheduler.add_job(self.daily_message, CronTrigger(day_of_week=days, hour=time.hour, minute=time.minute))
+        self.scheduler.add_job(self.sync_daily_message, CronTrigger(day_of_week=days, hour=time.hour, minute=time.minute), id='daily_message_job')
         # Start the scheduler
         self.scheduler.start()
 
     async def daily_message(self):
+        print("daily_message was called")
         channel = self.get_channel(
             000)  # Replace with the ID of the channel where you want to send the message
         member = next(self.member_cycle)  # Get the next member from the cycle
         with open('last_member.txt', 'w') as f:
             f.write(member)
         await channel.send(f'Hoje é a vez de {member}!')
+
+    def sync_daily_message(self):
+        self.loop.run_in_executor(None, self.loop.create_task, self.daily_message())
 
     async def on_ready(self):
         if not self.synced:
@@ -56,4 +63,4 @@ class MyBot(discord.Client):
 
 
 bot = MyBot(intents=discord.Intents.default())
-bot.run('discordToken')
+bot.run('secret')
