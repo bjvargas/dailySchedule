@@ -63,4 +63,4 @@ To run the bot, simply execute the main.py script:
 python main.py
 ```
 ## Cloud Deployment
-This bot can be easily deployed on a cloud bot server like DisCloudBot. Simply upload the bot's files and set the necessary environment variables (server ID, channel ID, and token).
+This bot can be easily deployed on a cloud bot server like DisCloudBot (https://docs.discloudbot.com/). Simply upload the bot's files and set the necessary environment variables (server ID, channel ID, and token).
