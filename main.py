@@ -5,7 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from members import add_member_commands, get_schedule
 
-GUILD_ID = 000
+GUILD_ID = 000 #
 
 # Read members from a file
 with open('members.txt', 'r') as f:
